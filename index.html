@@ -1,312 +1,287 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DeadlineTracker</title>
 
-    <!-- Tailwind CSS -->
+    <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Font Awesome -->
+    <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
-    <!-- Google Fonts -->
+    <!-- Font -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 
     <style>
-        body { font-family: 'Poppins', sans-serif; }
+        body { font-family: "Poppins", sans-serif; }
         .badge { padding: 0.25em 0.8em; font-size: 0.75rem; font-weight: 700; border-radius: 0.5rem; }
-        .fade-in { animation: fadeIn 0.5s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn .4s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition">
 
     <!-- HEADER -->
-    <nav class="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-50 transition">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16 items-center">
+    <nav class="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50 transition">
+        <div class="max-w-6xl mx-auto px-4 h-16 flex justify-between items-center">
 
-                <!-- Branding -->
-                <div class="flex items-center gap-3">
-                    <i class="fa-solid fa-calendar-day text-2xl text-indigo-600"></i>
-                    <h1 class="text-xl font-bold tracking-tight">
-                        Deadline<span class="text-indigo-600">Tracker</span>
-                    </h1>
-                </div>
-
-                <!-- Last Updated + Dark Toggle -->
-                <div class="flex items-center gap-4">
-                    <div class="text-sm text-gray-500 dark:text-gray-300 hidden sm:block" id="last-updated"></div>
-
-                    <!-- Toggle -->
-                    <button id="theme-toggle" class="text-xl p-2 rounded-lg bg-gray-200 dark:bg-gray-700 transition">
-                        <i id="theme-icon" class="fa-solid fa-sun"></i>
-                    </button>
-                </div>
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-calendar-day text-2xl text-indigo-500"></i>
+                <h1 class="text-xl font-bold">Deadline<span class="text-indigo-500">Tracker</span></h1>
             </div>
+
+            <div class="flex items-center gap-4">
+                <div id="last-updated" class="hidden sm:block text-sm text-gray-500 dark:text-gray-300"></div>
+
+                <!-- THEME TOGGLE -->
+                <button id="theme-toggle"
+                    class="text-xl p-2 rounded-lg bg-gray-200 dark:bg-gray-700 transition">
+                    <i id="theme-icon" class="fa-solid"></i>
+                </button>
+            </div>
+
         </div>
     </nav>
 
     <!-- MAIN -->
-    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main class="max-w-6xl mx-auto px-4 py-8">
 
         <!-- STATS -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="grid grid-cols-2 gap-4 mb-8">
             <div class="bg-white dark:bg-gray-800 shadow rounded-xl p-5 border-l-4 border-blue-500">
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Total Tasks</dt>
-                <dd class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white" id="stat-total">0</dd>
+                <dt class="text-sm text-gray-600 dark:text-gray-300 font-medium">Total Tasks</dt>
+                <dd id="stat-total" class="text-3xl font-semibold mt-1">0</dd>
             </div>
+
             <div class="bg-white dark:bg-gray-800 shadow rounded-xl p-5 border-l-4 border-yellow-400">
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Upcoming (7 Days)</dt>
-                <dd class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white" id="stat-upcoming">0</dd>
-            </div>
-            <div class="bg-white dark:bg-gray-800 shadow rounded-xl p-5 border-l-4 border-red-500">
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Overdue</dt>
-                <dd class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white" id="stat-overdue">0</dd>
-            </div>
-            <div class="bg-white dark:bg-gray-800 shadow rounded-xl p-5 border-l-4 border-green-500">
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Completed</dt>
-                <dd class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white" id="stat-completed">-</dd>
+                <dt class="text-sm text-gray-600 dark:text-gray-300 font-medium">Upcoming (7 Days)</dt>
+                <dd id="stat-upcoming" class="text-3xl font-semibold mt-1">0</dd>
             </div>
         </div>
 
         <!-- FILTERS -->
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+
             <!-- Search -->
             <div class="relative w-full sm:w-96">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <i class="fa-solid fa-search text-gray-400"></i>
-                </div>
-                <input type="text" id="search-input"
-                    class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-700
-                           rounded-lg bg-white dark:bg-gray-800 dark:text-gray-100
-                           focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    placeholder="Search assignments...">
+                <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                <input id="search-input" placeholder="Search..."
+                    class="w-full pl-10 pr-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700
+                    bg-white dark:bg-gray-800 dark:text-gray-100 focus:ring-indigo-500 focus:border-indigo-500">
             </div>
 
             <!-- Class Filter -->
             <select id="filter-class"
-                class="block w-full sm:w-auto py-2 px-3 border border-gray-300 dark:border-gray-700 
-                       bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:text-gray-100 sm:text-sm">
+                class="py-2 px-3 rounded-lg border border-gray-300 dark:border-gray-700
+                bg-white dark:bg-gray-800 dark:text-gray-100 shadow-sm">
                 <option value="All">All Classes</option>
             </select>
+
         </div>
 
         <!-- LOADER -->
         <div id="loader" class="text-center py-20">
-            <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-indigo-600"></div>
+            <div class="animate-spin h-12 w-12 border-t-4 border-b-4 border-indigo-600 rounded-full mx-auto"></div>
             <p class="mt-4 text-gray-500 dark:text-gray-400">Syncing with Google Sheets...</p>
         </div>
 
-        <!-- ASSIGNMENTS -->
+        <!-- CARDS -->
         <div id="assignment-container" class="grid gap-4 hidden"></div>
 
-        <!-- EMPTY STATE -->
+        <!-- EMPTY -->
         <div id="empty-state" class="hidden text-center py-20">
             <i class="fa-regular fa-clipboard text-6xl text-gray-300 mb-4"></i>
-            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-200">No active assignments</h3>
+            <h3 class="text-lg font-medium">No active assignments</h3>
             <p class="text-gray-500">You're all caught up!</p>
         </div>
 
     </main>
 
-    <!-- FOOTER -->
-    <footer class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-12">
-        <div class="max-w-6xl mx-auto px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-            &copy; 2025 DeadlineTracker
-        </div>
+    <footer class="text-center py-6 text-sm text-gray-500 dark:text-gray-400 border-t border-gray-300 dark:border-gray-700">
+        &copy; 2025 DeadlineTracker
     </footer>
 
-    <!-- SCRIPTS -->
+    <!-- SCRIPT -->
     <script>
-        const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTzkyidBhfigPvat3WEZFh6IhblU1GPSZIiPAeI27ALZ4yfoxzfHiji3HtczzYHTS-b3d3dj1iYmHSu/pub?gid=0&single=true&output=csv"; 
+        const SHEET_CSV_URL =
+            "https://docs.google.com/spreadsheets/d/e/2PACX-1vTzkyidBhfigPvat3WEZFh6IhblU1GPSZIiPAeI27ALZ4yfoxzfHiji3HtczzYHTS-b3d3dj1iYmHSu/pub?gid=0&single=true&output=csv";
 
         let allAssignments = [];
 
-        document.addEventListener('DOMContentLoaded', () => {
-            handleTheme();
+        document.addEventListener("DOMContentLoaded", () => {
+            initTheme();
             fetchData();
 
-            document.getElementById('search-input').addEventListener('input', filterData);
-            document.getElementById('filter-class').addEventListener('change', filterData);
+            document.getElementById("search-input").addEventListener("input", filterData);
+            document.getElementById("filter-class").addEventListener("change", filterData);
         });
 
-        /* ---------------------- DARK MODE ---------------------- */
-        function handleTheme() {
-            const themeToggle = document.getElementById("theme-toggle");
-            const themeIcon = document.getElementById("theme-icon");
+        /* ------------------ DARK MODE FIXED ------------------ */
+        function initTheme() {
+            const icon = document.getElementById("theme-icon");
 
-            if (localStorage.getItem("theme") === "light") {
-                document.documentElement.classList.remove("dark");
-                themeIcon.classList.replace("fa-sun", "fa-moon");
-            }
+            const saved = localStorage.getItem("theme") || "dark";
+            document.documentElement.classList.toggle("dark", saved === "dark");
 
-            themeToggle.addEventListener("click", () => {
+            icon.classList.add(saved === "dark" ? "fa-sun" : "fa-moon");
+
+            document.getElementById("theme-toggle").onclick = () => {
                 const isDark = document.documentElement.classList.toggle("dark");
-
-                if (isDark) {
-                    themeIcon.classList.replace("fa-moon", "fa-sun");
-                    localStorage.setItem("theme", "dark");
-                } else {
-                    themeIcon.classList.replace("fa-sun", "fa-moon");
-                    localStorage.setItem("theme", "light");
-                }
-            });
+                icon.classList.replace(isDark ? "fa-moon" : "fa-sun", isDark ? "fa-sun" : "fa-moon");
+                localStorage.setItem("theme", isDark ? "dark" : "light");
+            };
         }
 
-        /* ---------------------- FETCH DATA ---------------------- */
+        /* ------------------ FETCH DATA ------------------ */
         async function fetchData() {
             try {
-                const response = await fetch(SHEET_CSV_URL);
-                const data = await response.text();
-                
-                allAssignments = parseCSV(data);
+                const res = await fetch(SHEET_CSV_URL);
+                const text = await res.text();
 
+                allAssignments = parseCSV(text);
                 populateClassFilter();
-                calculateStats();
+                renderStats();
                 renderAssignments(allAssignments);
 
-                document.getElementById('loader').classList.add('hidden');
-                document.getElementById('assignment-container').classList.remove('hidden');
-                document.getElementById('last-updated').innerText = `Last synced: ${new Date().toLocaleTimeString()}`;
+                document.getElementById("loader").classList.add("hidden");
+                document.getElementById("assignment-container").classList.remove("hidden");
 
-            } catch (error) {
-                console.error('Error:', error);
-                document.getElementById('loader').innerHTML = `<p class="text-red-500">Error loading data.</p>`;
+                document.getElementById("last-updated").textContent =
+                    "Last synced: " + new Date().toLocaleTimeString();
+
+            } catch (e) {
+                document.getElementById("loader").innerHTML =
+                    `<p class="text-red-500">Error loading data.</p>`;
             }
         }
 
-        /* ---------------------- PARSE CSV ---------------------- */
+        /* ------------------ PARSE CSV ------------------ */
         function parseCSV(text) {
-            const lines = text.split(/\r\n|\n/);
+            const lines = text.split(/\r?\n/);
             const result = [];
-            let foundHeader = false;
+            let headerFound = false;
 
-            for (let i = 0; i < lines.length; i++) {
-                const row = lines[i]
-                    .split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/)
-                    .map(cell => cell.replace(/^"|"$/g, '').trim());
+            lines.forEach(row => {
+                const cells = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/)
+                                 .map(c => c.replace(/^"|"$/g, "").trim());
 
-                if (!foundHeader) {
-                    if (row[1]?.toUpperCase().includes("CLASS NAME")) foundHeader = true;
-                    continue;
+                if (!headerFound) {
+                    if (cells[1]?.toUpperCase().includes("CLASS")) headerFound = true;
+                    return;
                 }
 
-                const className = row[1];
-                if (!className) continue;
+                if (!cells[1]) return;
 
                 result.push({
-                    className,
-                    title: row[2] || "Untitled Assignment",
-                    desc: row[3] || "",
-                    priority: row[4] || "Low",
-                    date: row[5] || "",
-                    daysLeft: parseInt(row[6]) || 0
+                    className: cells[1],
+                    title: cells[2] || "Untitled Assignment",
+                    desc: cells[3] || "",
+                    priority: cells[4] || "Low",
+                    date: cells[5] || "",
+                    daysLeft: parseInt(cells[6]) || 0
                 });
-            }
+            });
+
             return result;
         }
 
-        /* ---------------------- STATS ---------------------- */
-        function calculateStats() {
-            const total = allAssignments.length;
-            const upcoming = allAssignments.filter(a => a.daysLeft <= 7 && a.daysLeft >= 0).length;
-            const overdue = allAssignments.filter(a => a.daysLeft < 0).length;
-
-            document.getElementById('stat-total').innerText = total;
-            document.getElementById('stat-upcoming').innerText = upcoming;
-            document.getElementById('stat-overdue').innerText = overdue;
+        /* ------------------ STATS ------------------ */
+        function renderStats() {
+            document.getElementById("stat-total").textContent = allAssignments.length;
+            document.getElementById("stat-upcoming").textContent =
+                allAssignments.filter(a => a.daysLeft <= 7 && a.daysLeft >= 0).length;
         }
 
-        /* ---------------------- CLASS FILTER ---------------------- */
+        /* ------------------ CLASS FILTER ------------------ */
         function populateClassFilter() {
-            const classes = [...new Set(allAssignments.map(i => i.className))].sort();
-            const select = document.getElementById('filter-class');
-
-            classes.forEach(c => {
-                const option = document.createElement('option');
-                option.value = c;
-                option.innerText = c;
-                select.appendChild(option);
+            const select = document.getElementById("filter-class");
+            [...new Set(allAssignments.map(a => a.className))].sort().forEach(cls => {
+                const opt = document.createElement("option");
+                opt.value = opt.textContent = cls;
+                select.appendChild(opt);
             });
         }
 
-        /* ---------------------- FILTER DATA ---------------------- */
+        /* ------------------ FILTER ------------------ */
         function filterData() {
-            const searchTerm = document.getElementById('search-input').value.toLowerCase();
-            const classFilter = document.getElementById('filter-class').value;
+            const q = document.getElementById("search-input").value.toLowerCase();
+            const cls = document.getElementById("filter-class").value;
 
-            const filtered = allAssignments.filter(item => {
-                const matchesSearch = item.title.toLowerCase().includes(searchTerm) 
-                    || item.className.toLowerCase().includes(searchTerm);
-
-                const matchesClass = classFilter === "All" || item.className === classFilter;
-
-                return matchesSearch && matchesClass;
-            });
+            const filtered = allAssignments.filter(item =>
+                (item.title.toLowerCase().includes(q) ||
+                 item.className.toLowerCase().includes(q)) &&
+                (cls === "All" || item.className === cls)
+            );
 
             renderAssignments(filtered);
         }
 
-        /* ---------------------- RENDER CARDS ---------------------- */
+        /* ------------------ RENDER CARDS ------------------ */
         function renderAssignments(data) {
-            const container = document.getElementById('assignment-container');
-            container.innerHTML = '';
+            const container = document.getElementById("assignment-container");
+            container.innerHTML = "";
 
             if (data.length === 0) {
-                document.getElementById('empty-state').classList.remove('hidden');
+                document.getElementById("empty-state").classList.remove("hidden");
                 return;
-            } else {
-                document.getElementById('empty-state').classList.add('hidden');
             }
+            document.getElementById("empty-state").classList.add("hidden");
 
             data.forEach(item => {
-                let priorityClass = "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200";
-                if (item.priority.toLowerCase().includes("high")) priorityClass = "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200";
-                if (item.priority.toLowerCase().includes("medium")) priorityClass = "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200";
-                if (item.priority.toLowerCase().includes("low")) priorityClass = "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200";
+                const card = document.createElement("div");
+                card.className =
+                    "bg-white dark:bg-gray-800 p-5 rounded-lg shadow border border-gray-200 dark:border-gray-700 " +
+                    "flex flex-col sm:flex-row justify-between sm:items-center gap-4 fade-in";
 
-                let daysColor = "text-gray-600 dark:text-gray-300";
+                let priorityClass = "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200";
+                if (item.priority.toLowerCase().includes("high"))
+                    priorityClass = "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200";
+                if (item.priority.toLowerCase().includes("medium"))
+                    priorityClass = "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200";
+                if (item.priority.toLowerCase().includes("low"))
+                    priorityClass = "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200";
+
                 let daysText = `${item.daysLeft} Days Left`;
+                let daysColor = "text-gray-600 dark:text-gray-300";
 
                 if (item.daysLeft < 0) {
-                    daysColor = "text-red-600 dark:text-red-400 font-bold";
                     daysText = `Overdue by ${Math.abs(item.daysLeft)} Days`;
+                    daysColor = "text-red-600 dark:text-red-400 font-bold";
                 } else if (item.daysLeft <= 3) {
                     daysColor = "text-orange-600 dark:text-orange-400 font-bold";
                 }
 
-                const card = document.createElement('div');
-                card.className =
-                    "bg-white dark:bg-gray-800 rounded-lg shadow p-5 border border-gray-200 dark:border-gray-700 " +
-                    "hover:shadow-md transition flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center fade-in";
-
                 card.innerHTML = `
                     <div class="flex-1">
                         <div class="flex items-center gap-2 mb-1">
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200">
+                            <span class="px-2.5 py-0.5 rounded-full text-xs font-medium
+                                bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200">
                                 ${item.className}
                             </span>
-                            <span class="badge ${priorityClass}">
-                                ${item.priority}
-                            </span>
+
+                            <span class="badge ${priorityClass}">${item.priority}</span>
                         </div>
 
-                        <h4 class="text-lg font-semibold text-gray-900 dark:text-gray-100">${item.title}</h4>
+                        <h4 class="text-lg font-semibold">${item.title}</h4>
                         <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">${item.desc}</p>
                     </div>
 
-                    <div class="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end mt-2 sm:mt-0 border-t sm:border-t-0 pt-3 sm:pt-0">
+                    <div class="flex items-center gap-6 sm:w-auto w-full justify-between sm:justify-end
+                        border-t sm:border-t-0 pt-3 sm:pt-0">
+
                         <div class="text-right">
-                            <p class="text-xs text-gray-400 dark:text-gray-500 uppercase font-semibold">Due Date</p>
-                            <p class="font-medium text-gray-900 dark:text-gray-100">${item.date}</p>
+                            <p class="text-xs text-gray-400 uppercase font-semibold">Due Date</p>
+                            <p class="font-medium">${item.date}</p>
                         </div>
 
-                        <div class="text-right w-24">
-                            <p class="text-xs ${daysColor} uppercase font-semibold">${daysText}</p>
+                        <div class="text-right w-28">
+                            <p class="text-xs uppercase font-semibold ${daysColor}">${daysText}</p>
                         </div>
                     </div>
                 `;
