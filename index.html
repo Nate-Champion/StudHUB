@@ -53,17 +53,18 @@
     <main class="max-w-6xl mx-auto px-4 py-8">
 
         <!-- STATS -->
-        <div class="grid grid-cols-2 gap-4 mb-8">
-            <div class="bg-white dark:bg-gray-800 shadow rounded-xl p-5 border-l-4 border-blue-500">
-                <dt class="text-sm text-gray-600 dark:text-gray-300 font-medium">Total Tasks</dt>
-                <dd id="stat-total" class="text-3xl font-semibold mt-1">0</dd>
-            </div>
+       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+    <div class="bg-white dark:bg-gray-800 shadow rounded-xl p-5 border-l-4 border-blue-500">
+        <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Total Tasks</dt>
+        <dd class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white" id="stat-total">0</dd>
+    </div>
 
-            <div class="bg-white dark:bg-gray-800 shadow rounded-xl p-5 border-l-4 border-yellow-400">
-                <dt class="text-sm text-gray-600 dark:text-gray-300 font-medium">Upcoming (7 Days)</dt>
-                <dd id="stat-upcoming" class="text-3xl font-semibold mt-1">0</dd>
-            </div>
-        </div>
+    <div class="bg-white dark:bg-gray-800 shadow rounded-xl p-5 border-l-4 border-yellow-400">
+        <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Upcoming (7 Days)</dt>
+        <dd class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white" id="stat-upcoming">0</dd>
+    </div>
+</div>
+
 
         <!-- FILTERS -->
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
