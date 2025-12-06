@@ -22,6 +22,43 @@
             from { opacity: 0; transform: translateY(6px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        .completed { opacity: 0.7; }
+        .completed-card { 
+            order: 9999;
+            background-color: rgba(243, 244, 246, 0.5) !important;
+        }
+        .dark .completed-card {
+            background-color: rgba(31, 41, 55, 0.4) !important;
+        }
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .custom-checkbox {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid #d1d5db;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .dark .custom-checkbox {
+            border-color: #4b5563;
+        }
+        .custom-checkbox.checked {
+            background-color: #10b981;
+            border-color: #10b981;
+        }
+        .custom-checkbox.checked::after {
+            content: '✓';
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
     </style>
 </head>
 
@@ -53,20 +90,29 @@
     <main class="max-w-6xl mx-auto px-4 py-8">
 
         <!-- STATS -->
-       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-    <div class="bg-white dark:bg-gray-800 shadow rounded-xl p-5 border-l-4 border-blue-500">
-        <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Total Tasks</dt>
-        <dd class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white" id="stat-total">0</dd>
-    </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white dark:bg-gray-800 shadow rounded-xl p-5 border-l-4 border-blue-500">
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Total Tasks</dt>
+                <dd class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white" id="stat-total">0</dd>
+            </div>
 
-    <div class="bg-white dark:bg-gray-800 shadow rounded-xl p-5 border-l-4 border-yellow-400">
-        <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Upcoming (7 Days)</dt>
-        <dd class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white" id="stat-upcoming">0</dd>
-    </div>
-</div>
+            <div class="bg-white dark:bg-gray-800 shadow rounded-xl p-5 border-l-4 border-yellow-400">
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Upcoming (7 Days)</dt>
+                <dd class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white" id="stat-upcoming">0</dd>
+            </div>
+            
+            <div class="bg-white dark:bg-gray-800 shadow rounded-xl p-5 border-l-4 border-green-500">
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Active</dt>
+                <dd class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white" id="stat-active">0</dd>
+            </div>
+            
+            <div class="bg-white dark:bg-gray-800 shadow rounded-xl p-5 border-l-4 border-gray-400">
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Completed</dt>
+                <dd class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white" id="stat-completed">0</dd>
+            </div>
+        </div>
 
-
-        <!-- FILTERS -->
+        <!-- FILTERS & CONTROLS -->
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
 
             <!-- Search -->
@@ -77,12 +123,20 @@
                     bg-white dark:bg-gray-800 dark:text-gray-100 focus:ring-indigo-500 focus:border-indigo-500">
             </div>
 
-            <!-- Class Filter -->
-            <select id="filter-class"
-                class="py-2 px-3 rounded-lg border border-gray-300 dark:border-gray-700
-                bg-white dark:bg-gray-800 dark:text-gray-100 shadow-sm">
-                <option value="All">All Classes</option>
-            </select>
+            <div class="flex items-center gap-3">
+                <!-- Class Filter -->
+                <select id="filter-class"
+                    class="py-2 px-3 rounded-lg border border-gray-300 dark:border-gray-700
+                    bg-white dark:bg-gray-800 dark:text-gray-100 shadow-sm">
+                    <option value="All">All Classes</option>
+                </select>
+                
+                <!-- Show/Hide Completed -->
+                <button id="toggle-completed" class="py-2 px-3 rounded-lg border border-gray-300 dark:border-gray-700
+                    bg-white dark:bg-gray-800 dark:text-gray-100 shadow-sm text-sm">
+                    <i class="fa-regular fa-eye mr-1"></i> Show Completed
+                </button>
+            </div>
 
         </div>
 
@@ -114,16 +168,20 @@
             "https://docs.google.com/spreadsheets/d/e/2PACX-1vTzkyidBhfigPvat3WEZFh6IhblU1GPSZIiPAeI27ALZ4yfoxzfHiji3HtczzYHTS-b3d3dj1iYmHSu/pub?gid=0&single=true&output=csv";
 
         let allAssignments = [];
+        let completedAssignments = new Set();
+        let showCompleted = false;
 
         document.addEventListener("DOMContentLoaded", () => {
             initTheme();
+            loadCompletedFromStorage();
             fetchData();
 
             document.getElementById("search-input").addEventListener("input", filterData);
             document.getElementById("filter-class").addEventListener("change", filterData);
+            document.getElementById("toggle-completed").addEventListener("click", toggleCompletedView);
         });
 
-        /* ------------------ DARK MODE FIXED ------------------ */
+        /* ------------------ DARK MODE ------------------ */
         function initTheme() {
             const icon = document.getElementById("theme-icon");
 
@@ -137,6 +195,38 @@
                 icon.classList.replace(isDark ? "fa-moon" : "fa-sun", isDark ? "fa-sun" : "fa-moon");
                 localStorage.setItem("theme", isDark ? "dark" : "light");
             };
+        }
+
+        /* ------------------ COMPLETION STORAGE ------------------ */
+        function loadCompletedFromStorage() {
+            const stored = localStorage.getItem("completedAssignments");
+            if (stored) {
+                completedAssignments = new Set(JSON.parse(stored));
+            }
+        }
+
+        function saveCompletedToStorage() {
+            localStorage.setItem("completedAssignments", JSON.stringify([...completedAssignments]));
+        }
+
+        function toggleCompletion(assignmentId) {
+            if (completedAssignments.has(assignmentId)) {
+                completedAssignments.delete(assignmentId);
+            } else {
+                completedAssignments.add(assignmentId);
+            }
+            saveCompletedToStorage();
+            filterData();
+            renderStats();
+        }
+
+        function toggleCompletedView() {
+            showCompleted = !showCompleted;
+            const btn = document.getElementById("toggle-completed");
+            btn.innerHTML = showCompleted ? 
+                '<i class="fa-regular fa-eye-slash mr-1"></i> Hide Completed' : 
+                '<i class="fa-regular fa-eye mr-1"></i> Show Completed';
+            filterData();
         }
 
         /* ------------------ FETCH DATA ------------------ */
@@ -168,7 +258,7 @@
             const result = [];
             let headerFound = false;
 
-            lines.forEach(row => {
+            lines.forEach((row, index) => {
                 const cells = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/)
                                  .map(c => c.replace(/^"|"$/g, "").trim());
 
@@ -179,7 +269,11 @@
 
                 if (!cells[1]) return;
 
+                // Create a unique ID for each assignment
+                const assignmentId = `${cells[1]}-${cells[2]}-${cells[5]}`.replace(/\s+/g, '-');
+
                 result.push({
+                    id: assignmentId,
                     className: cells[1],
                     title: cells[2] || "Untitled Assignment",
                     desc: cells[3] || "",
@@ -194,9 +288,16 @@
 
         /* ------------------ STATS ------------------ */
         function renderStats() {
+            const activeAssignments = allAssignments.filter(a => !completedAssignments.has(a.id));
+            const completedCount = allAssignments.filter(a => completedAssignments.has(a.id)).length;
+            
             document.getElementById("stat-total").textContent = allAssignments.length;
+            document.getElementById("stat-active").textContent = activeAssignments.length;
+            document.getElementById("stat-completed").textContent = completedCount;
+            
+            // Upcoming: only count active assignments within 7 days
             document.getElementById("stat-upcoming").textContent =
-                allAssignments.filter(a => a.daysLeft <= 7 && a.daysLeft >= 0).length;
+                activeAssignments.filter(a => a.daysLeft <= 7 && a.daysLeft >= 0).length;
         }
 
         /* ------------------ CLASS FILTER ------------------ */
@@ -214,11 +315,25 @@
             const q = document.getElementById("search-input").value.toLowerCase();
             const cls = document.getElementById("filter-class").value;
 
-            const filtered = allAssignments.filter(item =>
+            let filtered = allAssignments.filter(item =>
                 (item.title.toLowerCase().includes(q) ||
                  item.className.toLowerCase().includes(q)) &&
                 (cls === "All" || item.className === cls)
             );
+
+            // Sort by days left (ascending - soonest first)
+            filtered.sort((a, b) => {
+                // Handle overdue items first
+                if (a.daysLeft < 0 && b.daysLeft >= 0) return -1;
+                if (a.daysLeft >= 0 && b.daysLeft < 0) return 1;
+                // Then sort by days left
+                return a.daysLeft - b.daysLeft;
+            });
+
+            // Filter out completed items if not showing them
+            if (!showCompleted) {
+                filtered = filtered.filter(item => !completedAssignments.has(item.id));
+            }
 
             renderAssignments(filtered);
         }
@@ -234,60 +349,114 @@
             }
             document.getElementById("empty-state").classList.add("hidden");
 
+            // Separate completed and active assignments
+            const active = [];
+            const completed = [];
+
             data.forEach(item => {
-                const card = document.createElement("div");
-                card.className =
-                    "bg-white dark:bg-gray-800 p-5 rounded-lg shadow border border-gray-200 dark:border-gray-700 " +
-                    "flex flex-col sm:flex-row justify-between sm:items-center gap-4 fade-in";
-
-                let priorityClass = "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200";
-                if (item.priority.toLowerCase().includes("high"))
-                    priorityClass = "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200";
-                if (item.priority.toLowerCase().includes("medium"))
-                    priorityClass = "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200";
-                if (item.priority.toLowerCase().includes("low"))
-                    priorityClass = "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200";
-
-                let daysText = `${item.daysLeft} Days Left`;
-                let daysColor = "text-gray-600 dark:text-gray-300";
-
-                if (item.daysLeft < 0) {
-                    daysText = `Overdue by ${Math.abs(item.daysLeft)} Days`;
-                    daysColor = "text-red-600 dark:text-red-400 font-bold";
-                } else if (item.daysLeft <= 3) {
-                    daysColor = "text-orange-600 dark:text-orange-400 font-bold";
+                if (completedAssignments.has(item.id)) {
+                    completed.push(item);
+                } else {
+                    active.push(item);
                 }
+            });
 
-                card.innerHTML = `
+            // Render active assignments first
+            active.forEach(item => {
+                container.appendChild(createCard(item, false));
+            });
+
+            // Then render completed assignments at the bottom
+            completed.forEach(item => {
+                container.appendChild(createCard(item, true));
+            });
+        }
+
+        /* ------------------ CREATE CARD ------------------ */
+        function createCard(item, isCompleted) {
+            const card = document.createElement("div");
+            
+            if (isCompleted) {
+                card.className = "completed-card bg-white dark:bg-gray-800 p-5 rounded-lg shadow border border-gray-200 dark:border-gray-700 " +
+                    "flex flex-col sm:flex-row justify-between sm:items-center gap-4 fade-in";
+            } else {
+                card.className = "bg-white dark:bg-gray-800 p-5 rounded-lg shadow border border-gray-200 dark:border-gray-700 " +
+                    "flex flex-col sm:flex-row justify-between sm:items-center gap-4 fade-in";
+            }
+
+            let priorityClass = "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200";
+            if (item.priority.toLowerCase().includes("high"))
+                priorityClass = "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200";
+            if (item.priority.toLowerCase().includes("medium"))
+                priorityClass = "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200";
+            if (item.priority.toLowerCase().includes("low"))
+                priorityClass = "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200";
+
+            let daysText = `${item.daysLeft} Days Left`;
+            let daysColor = "text-gray-600 dark:text-gray-300";
+
+            if (item.daysLeft < 0) {
+                daysText = `Overdue by ${Math.abs(item.daysLeft)} Days`;
+                daysColor = "text-red-600 dark:text-red-400 font-bold";
+            } else if (item.daysLeft <= 3) {
+                daysColor = "text-orange-600 dark:text-orange-400 font-bold";
+            }
+
+            // If completed, change the styling
+            if (isCompleted) {
+                daysText = "Completed";
+                daysColor = "text-green-600 dark:text-green-400 font-bold";
+                priorityClass = "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400";
+            }
+
+            card.innerHTML = `
+                <div class="flex items-start gap-4">
+                    <!-- Checkbox -->
+                    <div class="checkbox-wrapper mt-1">
+                        <div class="custom-checkbox ${completedAssignments.has(item.id) ? 'checked' : ''}" 
+                             data-id="${item.id}"></div>
+                    </div>
+                    
                     <div class="flex-1">
                         <div class="flex items-center gap-2 mb-1">
                             <span class="px-2.5 py-0.5 rounded-full text-xs font-medium
-                                bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200">
+                                ${isCompleted ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400' : 'bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200'}">
                                 ${item.className}
                             </span>
 
                             <span class="badge ${priorityClass}">${item.priority}</span>
                         </div>
 
-                        <h4 class="text-lg font-semibold">${item.title}</h4>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">${item.desc}</p>
+                        <h4 class="text-lg font-semibold ${isCompleted ? 'line-through text-gray-500 dark:text-gray-400' : ''}">
+                            ${item.title}
+                        </h4>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 ${isCompleted ? 'opacity-70' : ''}">
+                            ${item.desc}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-6 sm:w-auto w-full justify-between sm:justify-end
+                    border-t sm:border-t-0 pt-3 sm:pt-0 ml-10 sm:ml-0">
+
+                    <div class="text-right">
+                        <p class="text-xs text-gray-400 uppercase font-semibold">Due Date</p>
+                        <p class="font-medium ${isCompleted ? 'line-through text-gray-500' : ''}">${item.date}</p>
                     </div>
 
-                    <div class="flex items-center gap-6 sm:w-auto w-full justify-between sm:justify-end
-                        border-t sm:border-t-0 pt-3 sm:pt-0">
-
-                        <div class="text-right">
-                            <p class="text-xs text-gray-400 uppercase font-semibold">Due Date</p>
-                            <p class="font-medium">${item.date}</p>
-                        </div>
-
-                        <div class="text-right w-28">
-                            <p class="text-xs uppercase font-semibold ${daysColor}">${daysText}</p>
-                        </div>
+                    <div class="text-right w-28">
+                        <p class="text-xs uppercase font-semibold ${daysColor}">${daysText}</p>
                     </div>
-                `;
-                container.appendChild(card);
+                </div>
+            `;
+            
+            // Add click event to checkbox
+            const checkbox = card.querySelector('.custom-checkbox');
+            checkbox.addEventListener('click', () => {
+                toggleCompletion(item.id);
             });
+
+            return card;
         }
     </script>
 
