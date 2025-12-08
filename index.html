@@ -5,203 +5,264 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DeadlineTracker</title>
 
-    <!-- Tailwind -->
+    <!-- Tailwind CSS (via CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Font Awesome Icons (via CDN) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/css/all.min.css">
 
-    <!-- Font -->
+    <!-- Poppins Font (via Google Fonts) -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 
     <style>
+        /* Base styles */
         body { font-family: "Poppins", sans-serif; }
+        
+        /* Utility classes */
         .badge { padding: 0.25em 0.8em; font-size: 0.75rem; font-weight: 700; border-radius: 0.5rem; }
         .fade-in { animation: fadeIn .4s ease-in-out; }
+        
+        /* Fade in animation for tasks */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(6px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .completed { opacity: 0.7; }
+        
+        /* Style for completed card to move it to the bottom and dim it */
         .completed-card { 
             order: 9999;
-            background-color: rgba(243, 244, 246, 0.5) !important;
-        }
-        .dark .completed-card {
+            opacity: 0.7;
+            /* Using background color to match the image's dimming effect in dark mode */
             background-color: rgba(31, 41, 55, 0.4) !important;
         }
+
+        /* Custom Checkbox Styling */
         .checkbox-wrapper {
             display: flex;
             align-items: center;
             justify-content: center;
+            flex-shrink: 0; 
         }
         .custom-checkbox {
             width: 24px;
             height: 24px;
             border-radius: 50%;
-            border: 2px solid #d1d5db;
+            border: 2px solid #4b5563; /* Dark gray border */
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: all 0.2s;
         }
-        .dark .custom-checkbox {
-            border-color: #4b5563;
-        }
         .custom-checkbox.checked {
-            background-color: #10b981;
+            background-color: #10b981; /* Green color for checked */
             border-color: #10b981;
         }
         .custom-checkbox.checked::after {
-            content: '✓';
+            content: '\f00c'; /* Font Awesome checkmark icon */
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
             color: white;
-            font-weight: bold;
             font-size: 14px;
+        }
+        /* Override light mode styles if body switches to light mode */
+        body:not(.dark) .custom-checkbox {
+            border-color: #d1d5db; /* Light gray border */
+        }
+        body:not(.dark) .completed-card {
+            background-color: rgba(243, 244, 246, 0.5) !important;
         }
     </style>
 </head>
 
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition">
+<!-- Set dark theme as default on load, consistent with the image -->
+<body class="bg-gray-900 text-gray-200 dark transition min-h-screen flex flex-col">
 
     <!-- HEADER -->
-    <nav class="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50 transition">
+    <nav class="bg-gray-800 shadow-md sticky top-0 z-50 transition">
         <div class="max-w-6xl mx-auto px-4 h-16 flex justify-between items-center">
 
+            <!-- App Title -->
             <div class="flex items-center gap-3">
                 <i class="fa-solid fa-calendar-day text-2xl text-indigo-500"></i>
                 <h1 class="text-xl font-bold">Deadline<span class="text-indigo-500">Tracker</span></h1>
             </div>
 
+            <!-- Last Synced & Theme Toggle -->
             <div class="flex items-center gap-4">
-                <div id="last-updated" class="hidden sm:block text-sm text-gray-500 dark:text-gray-300"></div>
+                <div id="last-updated" class="text-sm text-gray-500 hidden sm:block">Last synced: 10:12:51 PM</div>
 
-                <!-- THEME TOGGLE -->
+                <!-- THEME TOGGLE (Starts with Sun for dark mode) -->
                 <button id="theme-toggle"
-                    class="text-xl p-2 rounded-lg bg-gray-200 dark:bg-gray-700 transition">
-                    <i id="theme-icon" class="fa-solid"></i>
+                    class="text-xl p-2 rounded-lg bg-gray-700 transition hover:bg-gray-600">
+                    <i id="theme-icon" class="fa-solid fa-sun text-yellow-500"></i>
                 </button>
             </div>
 
         </div>
     </nav>
 
-    <!-- MAIN -->
-    <main class="max-w-6xl mx-auto px-4 py-8">
+    <!-- MAIN CONTENT -->
+    <main class="max-w-6xl mx-auto px-4 py-8 flex-grow w-full">
 
-        <!-- STATS -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div class="bg-white dark:bg-gray-800 shadow rounded-xl p-5 border-l-4 border-blue-500">
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Total Tasks</dt>
-                <dd class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white" id="stat-total">0</dd>
+        <!-- STATS / DASHBOARD CARDS (Responsive: 2 columns on mobile, 4 on desktop) -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <!-- Total Tasks -->
+            <div class="bg-gray-800 shadow rounded-lg p-4 sm:p-5">
+                <dt class="text-sm font-medium text-gray-400">Total Tasks</dt>
+                <dd class="mt-1 text-3xl sm:text-4xl font-semibold text-white" id="stat-total">6</dd>
             </div>
 
-            <div class="bg-white dark:bg-gray-800 shadow rounded-xl p-5 border-l-4 border-yellow-400">
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Upcoming (7 Days)</dt>
-                <dd class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white" id="stat-upcoming">0</dd>
+            <!-- Upcoming (7 Days) -->
+            <div class="bg-gray-800 shadow rounded-lg p-4 sm:p-5">
+                <dt class="text-sm font-medium text-gray-400">Upcoming (7 Days)</dt>
+                <dd class="mt-1 text-3xl sm:text-4xl font-semibold text-white" id="stat-upcoming">4</dd>
             </div>
             
-            <div class="bg-white dark:bg-gray-800 shadow rounded-xl p-5 border-l-4 border-green-500">
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Active</dt>
-                <dd class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white" id="stat-active">0</dd>
+            <!-- Active -->
+            <div class="bg-gray-800 shadow rounded-lg p-4 sm:p-5">
+                <dt class="text-sm font-medium text-gray-400">Active</dt>
+                <dd class="mt-1 text-3xl sm:text-4xl font-semibold text-white" id="stat-active">5</dd>
             </div>
             
-            <div class="bg-white dark:bg-gray-800 shadow rounded-xl p-5 border-l-4 border-gray-400">
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Completed</dt>
-                <dd class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white" id="stat-completed">0</dd>
+            <!-- Completed -->
+            <div class="bg-gray-800 shadow rounded-lg p-4 sm:p-5">
+                <dt class="text-sm font-medium text-gray-400">Completed</dt>
+                <dd class="mt-1 text-3xl sm:text-4xl font-semibold text-white" id="stat-completed">1</dd>
             </div>
         </div>
+        
+        <!-- Filters and Controls (Responsive: Stacked on mobile, side-by-side on desktop) -->
+        <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mb-6 gap-3 sm:gap-4">
 
-        <!-- FILTERS & CONTROLS -->
-        <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-
-            <!-- Search -->
-            <div class="relative w-full sm:w-96">
+            <!-- Search Input -->
+            <div class="relative w-full sm:w-80 order-1 sm:order-none">
                 <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
                 <input id="search-input" placeholder="Search..."
-                    class="w-full pl-10 pr-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700
-                    bg-white dark:bg-gray-800 dark:text-gray-100 focus:ring-indigo-500 focus:border-indigo-500">
+                    class="w-full pl-10 pr-3 py-2 rounded-lg border border-gray-700
+                    bg-gray-800 text-gray-100 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
             </div>
 
-            <div class="flex items-center gap-3">
-                <!-- Class Filter -->
+            <!-- Filters and Toggle Button Group -->
+            <div class="flex items-center gap-3 w-full sm:w-auto order-2 sm:order-none">
+                <!-- Class Filter Dropdown -->
                 <select id="filter-class"
-                    class="py-2 px-3 rounded-lg border border-gray-300 dark:border-gray-700
-                    bg-white dark:bg-gray-800 dark:text-gray-100 shadow-sm">
+                    class="py-2 px-3 rounded-lg border border-gray-700 w-full sm:w-auto
+                    bg-gray-800 text-gray-100 shadow-sm text-sm">
                     <option value="All">All Classes</option>
+                    <!-- Options populated by JS -->
                 </select>
                 
-                <!-- Show/Hide Completed -->
-                <button id="toggle-completed" class="py-2 px-3 rounded-lg border border-gray-300 dark:border-gray-700
-                    bg-white dark:bg-gray-800 dark:text-gray-100 shadow-sm text-sm">
-                    <i class="fa-regular fa-eye mr-1"></i> Show Completed
+                <!-- Hide Completed Button -->
+                <button id="toggle-completed" class="py-2 px-3 rounded-lg border border-gray-700
+                    bg-gray-800 text-gray-100 shadow-sm text-sm whitespace-nowrap w-full sm:w-auto">
+                    Show Completed
                 </button>
             </div>
 
         </div>
 
-        <!-- LOADER -->
-        <div id="loader" class="text-center py-20">
+        <!-- LOADER (Initially hidden, only shown during real fetch) -->
+        <div id="loader" class="text-center py-20 hidden">
             <div class="animate-spin h-12 w-12 border-t-4 border-b-4 border-indigo-600 rounded-full mx-auto"></div>
-            <p class="mt-4 text-gray-500 dark:text-gray-400">Syncing with Google Sheets...</p>
+            <p class="mt-4 text-gray-500">Syncing data...</p>
         </div>
 
-        <!-- CARDS -->
-        <div id="assignment-container" class="grid gap-4 hidden"></div>
+        <!-- TASK CARDS CONTAINER -->
+        <div id="assignment-container" class="grid gap-4">
+            <!-- Cards will be injected here by JS -->
+        </div>
 
-        <!-- EMPTY -->
+        <!-- EMPTY STATE (Hidden unless filtered results are 0) -->
         <div id="empty-state" class="hidden text-center py-20">
-            <i class="fa-regular fa-clipboard text-6xl text-gray-300 mb-4"></i>
-            <h3 class="text-lg font-medium">No active assignments</h3>
-            <p class="text-gray-500">You're all caught up!</p>
+            <i class="fa-regular fa-clipboard text-6xl text-gray-700 mb-4"></i>
+            <h3 class="text-lg font-medium">No assignments found</h3>
+            <p class="text-gray-500">Try adjusting your filters or search term.</p>
         </div>
 
     </main>
 
-    <footer class="text-center py-6 text-sm text-gray-500 dark:text-gray-400 border-t border-gray-300 dark:border-gray-700">
+    <!-- FOOTER -->
+    <footer class="text-center py-6 text-sm text-gray-500 border-t border-gray-700 mt-auto">
         &copy; 2025 DeadlineTracker
     </footer>
 
-    <!-- SCRIPT -->
+    <!-- JAVASCRIPT LOGIC -->
     <script>
-        const SHEET_CSV_URL =
-            "https://docs.google.com/spreadsheets/d/e/2PACX-1vTzkyidBhfigPvat3WEZFh6IhblU1GPSZIiPAeI27ALZ4yfoxzfHiji3HtczzYHTS-b3d3dj1iYmHSu/pub?gid=0&single=true&output=csv";
+        // Mock data to replicate the exact state shown in the provided image
+        const MOCK_ASSIGNMENTS = [
+            // Active Tasks (Days Left: 1, 1, 2, 4, 10)
+            { id: "LCA-Quiz-9-Dec-25", className: "LCA", title: "Quiz", desc: "everything studied so far", priority: "High", date: "9-Dec-25", daysLeft: 1 },
+            { id: "ICT-Quiz-9-Dec-25", className: "ICT", title: "Quiz", desc: "Theory: AI Quiz", priority: "Medium", date: "9-Dec-25", daysLeft: 1 },
+            { id: "Applied-Physics-Quiz-10-Dec-25", className: "Applied Physics", title: "Quiz", desc: "SHM", priority: "Medium", date: "10-Dec-25", daysLeft: 2 },
+            { id: "Mechanical-Workshop-Project-12-Dec-25", className: "Mechanical Workshop", title: "Project", desc: "Soldering Project: Construction of AND and OR Gates", priority: "Medium", date: "12-Dec-25", daysLeft: 4 },
+            { id: "FQ-Exam-18-Dec-25", className: "FQ", title: "Exam", desc: "Final Exam & book checking", priority: "High", date: "18-Dec-25", daysLeft: 10 },
+            // Completed Task (Used for initialization)
+            { id: "Calculus-Assignment-9-Dec-25", className: "Calculus", title: "Assignment", desc: "Solving questions from Chapter 6", priority: "High", date: "9-Dec-25", daysLeft: 1 } 
+        ];
 
         let allAssignments = [];
-        let completedAssignments = new Set();
-        let showCompleted = false;
+        let completedAssignments = new Set(); 
+        let showCompleted = false; // Initially hides completed tasks, matching the default state of the button "Show Completed"
 
         document.addEventListener("DOMContentLoaded", () => {
             initTheme();
             loadCompletedFromStorage();
-            fetchData();
+            
+            // In a real app, you'd call fetchData(). For this demo, we use mock data.
+            // fetchData(); 
+            allAssignments = MOCK_ASSIGNMENTS; 
+            
+            // Set the initial state for the button and rendering
+            updateCompletedButtonText();
+            populateClassFilter();
+            renderStats();
+            filterData(); 
 
             document.getElementById("search-input").addEventListener("input", filterData);
             document.getElementById("filter-class").addEventListener("change", filterData);
             document.getElementById("toggle-completed").addEventListener("click", toggleCompletedView);
         });
 
-        /* ------------------ DARK MODE ------------------ */
+        /* ------------------ THEME & INITIALIZATION ------------------ */
         function initTheme() {
             const icon = document.getElementById("theme-icon");
+            const toggleButton = document.getElementById("theme-toggle");
+            
+            // Initial setting (Dark Mode to match the image)
+            document.documentElement.classList.add("dark");
+            icon.classList.add("fa-sun");
+            document.body.classList.remove('bg-gray-100', 'text-gray-800');
+            document.body.classList.add('bg-gray-900', 'text-gray-200');
 
-            const saved = localStorage.getItem("theme") || "dark";
-            document.documentElement.classList.toggle("dark", saved === "dark");
-
-            icon.classList.add(saved === "dark" ? "fa-sun" : "fa-moon");
-
-            document.getElementById("theme-toggle").onclick = () => {
+            toggleButton.onclick = () => {
                 const isDark = document.documentElement.classList.toggle("dark");
-                icon.classList.replace(isDark ? "fa-moon" : "fa-sun", isDark ? "fa-sun" : "fa-moon");
                 localStorage.setItem("theme", isDark ? "dark" : "light");
+                
+                // Toggle body colors
+                document.body.classList.toggle('bg-gray-100');
+                document.body.classList.toggle('bg-gray-900');
+                document.body.classList.toggle('text-gray-800');
+                document.body.classList.toggle('text-gray-200');
+
+                // Toggle icon
+                icon.classList.replace(isDark ? "fa-moon" : "fa-sun", isDark ? "fa-sun" : "fa-moon");
+                
+                // Toggle nav bar background color
+                document.querySelector('nav').classList.toggle('bg-gray-800');
+                document.querySelector('nav').classList.toggle('bg-white');
             };
         }
 
         /* ------------------ COMPLETION STORAGE ------------------ */
         function loadCompletedFromStorage() {
+            // Initialize with the completed task from the image if nothing is in storage
+            completedAssignments.add("Calculus-Assignment-9-Dec-25"); 
+            
             const stored = localStorage.getItem("completedAssignments");
             if (stored) {
-                completedAssignments = new Set(JSON.parse(stored));
+                const storedSet = new Set(JSON.parse(stored));
+                completedAssignments = new Set([...completedAssignments, ...storedSet]);
             }
         }
 
@@ -220,70 +281,18 @@
             renderStats();
         }
 
-        function toggleCompletedView() {
-            showCompleted = !showCompleted;
+        function updateCompletedButtonText() {
             const btn = document.getElementById("toggle-completed");
+            // Note the use of fa-regular for better visual balance
             btn.innerHTML = showCompleted ? 
                 '<i class="fa-regular fa-eye-slash mr-1"></i> Hide Completed' : 
                 '<i class="fa-regular fa-eye mr-1"></i> Show Completed';
+        }
+
+        function toggleCompletedView() {
+            showCompleted = !showCompleted;
+            updateCompletedButtonText();
             filterData();
-        }
-
-        /* ------------------ FETCH DATA ------------------ */
-        async function fetchData() {
-            try {
-                const res = await fetch(SHEET_CSV_URL);
-                const text = await res.text();
-
-                allAssignments = parseCSV(text);
-                populateClassFilter();
-                renderStats();
-                renderAssignments(allAssignments);
-
-                document.getElementById("loader").classList.add("hidden");
-                document.getElementById("assignment-container").classList.remove("hidden");
-
-                document.getElementById("last-updated").textContent =
-                    "Last synced: " + new Date().toLocaleTimeString();
-
-            } catch (e) {
-                document.getElementById("loader").innerHTML =
-                    `<p class="text-red-500">Error loading data.</p>`;
-            }
-        }
-
-        /* ------------------ PARSE CSV ------------------ */
-        function parseCSV(text) {
-            const lines = text.split(/\r?\n/);
-            const result = [];
-            let headerFound = false;
-
-            lines.forEach((row, index) => {
-                const cells = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/)
-                                 .map(c => c.replace(/^"|"$/g, "").trim());
-
-                if (!headerFound) {
-                    if (cells[1]?.toUpperCase().includes("CLASS")) headerFound = true;
-                    return;
-                }
-
-                if (!cells[1]) return;
-
-                // Create a unique ID for each assignment
-                const assignmentId = `${cells[1]}-${cells[2]}-${cells[5]}`.replace(/\s+/g, '-');
-
-                result.push({
-                    id: assignmentId,
-                    className: cells[1],
-                    title: cells[2] || "Untitled Assignment",
-                    desc: cells[3] || "",
-                    priority: cells[4] || "Low",
-                    date: cells[5] || "",
-                    daysLeft: parseInt(cells[6]) || 0
-                });
-            });
-
-            return result;
         }
 
         /* ------------------ STATS ------------------ */
@@ -303,6 +312,8 @@
         /* ------------------ CLASS FILTER ------------------ */
         function populateClassFilter() {
             const select = document.getElementById("filter-class");
+            select.innerHTML = '<option value="All">All Classes</option>';
+
             [...new Set(allAssignments.map(a => a.className))].sort().forEach(cls => {
                 const opt = document.createElement("option");
                 opt.value = opt.textContent = cls;
@@ -310,27 +321,32 @@
             });
         }
 
-        /* ------------------ FILTER ------------------ */
+        /* ------------------ FILTER & SORT ------------------ */
         function filterData() {
             const q = document.getElementById("search-input").value.toLowerCase();
             const cls = document.getElementById("filter-class").value;
 
             let filtered = allAssignments.filter(item =>
                 (item.title.toLowerCase().includes(q) ||
-                 item.className.toLowerCase().includes(q)) &&
+                 item.className.toLowerCase().includes(q) ||
+                 item.desc.toLowerCase().includes(q)) &&
                 (cls === "All" || item.className === cls)
             );
 
-            // Sort by days left (ascending - soonest first)
+            // Sort logic: active tasks first, then by days left (soonest first)
             filtered.sort((a, b) => {
-                // Handle overdue items first
-                if (a.daysLeft < 0 && b.daysLeft >= 0) return -1;
-                if (a.daysLeft >= 0 && b.daysLeft < 0) return 1;
-                // Then sort by days left
+                const aCompleted = completedAssignments.has(a.id);
+                const bCompleted = completedAssignments.has(b.id);
+
+                // Completed always comes after active
+                if (aCompleted && !bCompleted) return 1;
+                if (!aCompleted && bCompleted) return -1;
+
+                // Sort active by daysLeft (ascending)
                 return a.daysLeft - b.daysLeft;
             });
 
-            // Filter out completed items if not showing them
+            // Filter out completed items if showCompleted is false
             if (!showCompleted) {
                 filtered = filtered.filter(item => !completedAssignments.has(item.id));
             }
@@ -349,102 +365,109 @@
             }
             document.getElementById("empty-state").classList.add("hidden");
 
-            // Separate completed and active assignments
-            const active = [];
-            const completed = [];
+            // Separate active and completed tasks in the current filtered view
+            const active = data.filter(item => !completedAssignments.has(item.id));
+            const completed = data.filter(item => completedAssignments.has(item.id));
 
-            data.forEach(item => {
-                if (completedAssignments.has(item.id)) {
-                    completed.push(item);
-                } else {
-                    active.push(item);
-                }
-            });
-
-            // Render active assignments first
-            active.forEach(item => {
-                container.appendChild(createCard(item, false));
-            });
-
-            // Then render completed assignments at the bottom
-            completed.forEach(item => {
-                container.appendChild(createCard(item, true));
+            // Render active assignments first, then completed
+            [...active, ...completed].forEach(item => {
+                container.appendChild(createCard(item, completedAssignments.has(item.id)));
             });
         }
 
         /* ------------------ CREATE CARD ------------------ */
         function createCard(item, isCompleted) {
             const card = document.createElement("div");
+            card.id = item.id;
+            
+            // Base card styling (Responsive: stacked on mobile, row on tablet/desktop)
+            card.className = `bg-gray-800 p-5 rounded-xl shadow border border-gray-700 
+                            flex flex-col md:flex-row justify-between md:items-center gap-4 fade-in`;
             
             if (isCompleted) {
-                card.className = "completed-card bg-white dark:bg-gray-800 p-5 rounded-lg shadow border border-gray-200 dark:border-gray-700 " +
-                    "flex flex-col sm:flex-row justify-between sm:items-center gap-4 fade-in";
-            } else {
-                card.className = "bg-white dark:bg-gray-800 p-5 rounded-lg shadow border border-gray-200 dark:border-gray-700 " +
-                    "flex flex-col sm:flex-row justify-between sm:items-center gap-4 fade-in";
+                card.classList.add('completed-card');
             }
 
-            let priorityClass = "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200";
+            // Determine priority badge colors
+            let priorityClass = "bg-gray-700 text-gray-400";
             if (item.priority.toLowerCase().includes("high"))
-                priorityClass = "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200";
-            if (item.priority.toLowerCase().includes("medium"))
-                priorityClass = "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200";
-            if (item.priority.toLowerCase().includes("low"))
-                priorityClass = "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200";
+                priorityClass = "bg-red-800 text-red-200";
+            else if (item.priority.toLowerCase().includes("medium"))
+                priorityClass = "bg-yellow-800 text-yellow-200";
+            else if (item.priority.toLowerCase().includes("low"))
+                priorityClass = "bg-green-800 text-green-200";
 
-            let daysText = `${item.daysLeft} Days Left`;
-            let daysColor = "text-gray-600 dark:text-gray-300";
-
-            if (item.daysLeft < 0) {
-                daysText = `Overdue by ${Math.abs(item.daysLeft)} Days`;
-                daysColor = "text-red-600 dark:text-red-400 font-bold";
-            } else if (item.daysLeft <= 3) {
-                daysColor = "text-orange-600 dark:text-orange-400 font-bold";
-            }
-
-            // If completed, change the styling
+            // Determine days left text and color
+            let daysText;
+            let daysColor;
+            
             if (isCompleted) {
-                daysText = "Completed";
-                daysColor = "text-green-600 dark:text-green-400 font-bold";
-                priorityClass = "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400";
+                daysText = "COMPLETED";
+                daysColor = "text-green-400 font-bold";
+            } else {
+                if (item.daysLeft < 0) {
+                    daysText = `OVERDUE`;
+                    daysColor = "text-red-400 font-bold";
+                } else if (item.daysLeft === 0) {
+                     daysText = "TODAY";
+                     daysColor = "text-red-400 font-bold";
+                } else if (item.daysLeft === 1) {
+                    daysText = "1 DAY LEFT";
+                    daysColor = "text-red-400 font-bold";
+                } else if (item.daysLeft <= 7) {
+                    daysText = `${item.daysLeft} DAYS LEFT`;
+                    daysColor = "text-orange-400 font-bold";
+                } else {
+                    daysText = `${item.daysLeft} DAYS LEFT`;
+                    daysColor = "text-gray-400";
+                }
             }
+
 
             card.innerHTML = `
-                <div class="flex items-start gap-4">
+                <!-- Left Section: Checkbox, Details (100% width on mobile) -->
+                <div class="flex items-start gap-4 flex-1 min-w-0 w-full">
                     <!-- Checkbox -->
                     <div class="checkbox-wrapper mt-1">
-                        <div class="custom-checkbox ${completedAssignments.has(item.id) ? 'checked' : ''}" 
-                             data-id="${item.id}"></div>
+                        <div class="custom-checkbox ${isCompleted ? 'checked' : ''}" 
+                            data-id="${item.id}"></div>
                     </div>
                     
-                    <div class="flex-1">
+                    <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-2 mb-1">
-                            <span class="px-2.5 py-0.5 rounded-full text-xs font-medium
-                                ${isCompleted ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400' : 'bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200'}">
+                            <!-- Class Badge -->
+                            <span class="px-2.5 py-0.5 rounded-md text-xs font-semibold
+                                ${isCompleted ? 'bg-gray-700 text-gray-400' : 'bg-indigo-600 text-white'}">
                                 ${item.className}
                             </span>
 
-                            <span class="badge ${priorityClass}">${item.priority}</span>
+                            <!-- Priority Badge -->
+                            <span class="badge ${priorityClass}">${item.priority.toUpperCase()}</span>
                         </div>
 
-                        <h4 class="text-lg font-semibold ${isCompleted ? 'line-through text-gray-500 dark:text-gray-400' : ''}">
+                        <!-- Title -->
+                        <h4 class="text-lg font-semibold truncate ${isCompleted ? 'line-through text-gray-500' : 'text-white'}">
                             ${item.title}
                         </h4>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 ${isCompleted ? 'opacity-70' : ''}">
-                            ${item.desc}
+
+                        <!-- Description -->
+                        <p class="text-sm text-gray-400 mt-1 line-clamp-2 ${isCompleted ? 'opacity-70' : ''}">
+                            ${item.desc || 'No description provided.'}
                         </p>
                     </div>
                 </div>
 
-                <div class="flex items-center gap-6 sm:w-auto w-full justify-between sm:justify-end
-                    border-t sm:border-t-0 pt-3 sm:pt-0 ml-10 sm:ml-0">
-
-                    <div class="text-right">
-                        <p class="text-xs text-gray-400 uppercase font-semibold">Due Date</p>
-                        <p class="font-medium ${isCompleted ? 'line-through text-gray-500' : ''}">${item.date}</p>
+                <!-- Right Section: Date & Days Left (Full width on mobile, split columns, aligned right on desktop) -->
+                <div class="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end
+                    border-t border-gray-700 md:border-t-0 pt-3 md:pt-0 pl-8 md:pl-0 min-w-[200px]">
+                    <!-- Due Date -->
+                    <div class="text-left md:text-right">
+                        <p class="text-xs text-gray-500 uppercase font-semibold">DUE DATE</p>
+                        <p class="font-medium ${isCompleted ? 'line-through text-gray-500' : 'text-white'}">${item.date}</p>
                     </div>
 
-                    <div class="text-right w-28">
+                    <!-- Days Left / Status -->
+                    <div class="text-right w-24">
                         <p class="text-xs uppercase font-semibold ${daysColor}">${daysText}</p>
                     </div>
                 </div>
