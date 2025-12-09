@@ -1,487 +1,353 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DeadlineTracker</title>
+<script>
+    // THE GOOGLE SHEET CSV URL
+    const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTzkyidBhfigPvat3WEZFh6IhblU1GPSZIiPAeI27ALZ4yfoxzfHiji3HtczzYHTS-b3d3dj1iYmHSu/pub?gid=0&single=true&output=csv';
 
-    <!-- Tailwind CSS (via CDN) -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    let allAssignments = [];
+    let completedAssignments = new Set(); 
+    let showCompleted = false; 
 
-    <!-- Font Awesome Icons (via CDN) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/css/all.min.css">
-
-    <!-- Poppins Font (via Google Fonts) -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
-
-    <style>
-        /* Base styles */
-        body { font-family: "Poppins", sans-serif; }
+    document.addEventListener("DOMContentLoaded", () => {
+        initTheme();
+        loadCompletedFromStorage();
         
-        /* Utility classes */
-        .badge { padding: 0.25em 0.8em; font-size: 0.75rem; font-weight: 700; border-radius: 0.5rem; }
-        .fade-in { animation: fadeIn .4s ease-in-out; }
+        // INITIAL FETCH
+        fetchData();
+
+        // Event Listeners
+        document.getElementById("search-input").addEventListener("input", filterData);
+        document.getElementById("filter-class").addEventListener("change", filterData);
+        document.getElementById("toggle-completed").addEventListener("click", toggleCompletedView);
         
-        /* Fade in animation for tasks */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(6px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        /* Style for completed card to move it to the bottom and dim it */
-        .completed-card { 
-            order: 9999;
-            opacity: 0.7;
-            /* Using background color to match the image's dimming effect in dark mode */
-            background-color: rgba(31, 41, 55, 0.4) !important;
-        }
+        // Add click listener to the "Last Synced" text to manually refresh
+        document.getElementById("last-updated").parentElement.style.cursor = "pointer";
+        document.getElementById("last-updated").parentElement.addEventListener("click", fetchData);
+    });
 
-        /* Custom Checkbox Styling */
-        .checkbox-wrapper {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0; 
-        }
-        .custom-checkbox {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            border: 2px solid #4b5563; /* Dark gray border */
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-        }
-        .custom-checkbox.checked {
-            background-color: #10b981; /* Green color for checked */
-            border-color: #10b981;
-        }
-        .custom-checkbox.checked::after {
-            content: '\f00c'; /* Font Awesome checkmark icon */
-            font-family: 'Font Awesome 6 Free';
-            font-weight: 900;
-            color: white;
-            font-size: 14px;
-        }
-        /* Override light mode styles if body switches to light mode */
-        body:not(.dark) .custom-checkbox {
-            border-color: #d1d5db; /* Light gray border */
-        }
-        body:not(.dark) .completed-card {
-            background-color: rgba(243, 244, 246, 0.5) !important;
-        }
-    </style>
-</head>
+    /* ------------------ DATA FETCHING ------------------ */
+    async function fetchData() {
+        const loader = document.getElementById("loader");
+        const container = document.getElementById("assignment-container");
+        const lastUpdated = document.getElementById("last-updated");
 
-<!-- Set dark theme as default on load, consistent with the image -->
-<body class="bg-gray-900 text-gray-200 dark transition min-h-screen flex flex-col">
+        // Show loader, hide container
+        loader.classList.remove("hidden");
+        container.classList.add("hidden");
 
-    <!-- HEADER -->
-    <nav class="bg-gray-800 shadow-md sticky top-0 z-50 transition">
-        <div class="max-w-6xl mx-auto px-4 h-16 flex justify-between items-center">
-
-            <!-- App Title -->
-            <div class="flex items-center gap-3">
-                <i class="fa-solid fa-calendar-day text-2xl text-indigo-500"></i>
-                <h1 class="text-xl font-bold">Deadline<span class="text-indigo-500">Tracker</span></h1>
-            </div>
-
-            <!-- Last Synced & Theme Toggle -->
-            <div class="flex items-center gap-4">
-                <div id="last-updated" class="text-sm text-gray-500 hidden sm:block">Last synced: 10:12:51 PM</div>
-
-                <!-- THEME TOGGLE (Starts with Sun for dark mode) -->
-                <button id="theme-toggle"
-                    class="text-xl p-2 rounded-lg bg-gray-700 transition hover:bg-gray-600">
-                    <i id="theme-icon" class="fa-solid fa-sun text-yellow-500"></i>
-                </button>
-            </div>
-
-        </div>
-    </nav>
-
-    <!-- MAIN CONTENT -->
-    <main class="max-w-6xl mx-auto px-4 py-8 flex-grow w-full">
-
-        <!-- STATS / DASHBOARD CARDS (Responsive: 2 columns on mobile, 4 on desktop) -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <!-- Total Tasks -->
-            <div class="bg-gray-800 shadow rounded-lg p-4 sm:p-5">
-                <dt class="text-sm font-medium text-gray-400">Total Tasks</dt>
-                <dd class="mt-1 text-3xl sm:text-4xl font-semibold text-white" id="stat-total">6</dd>
-            </div>
-
-            <!-- Upcoming (7 Days) -->
-            <div class="bg-gray-800 shadow rounded-lg p-4 sm:p-5">
-                <dt class="text-sm font-medium text-gray-400">Upcoming (7 Days)</dt>
-                <dd class="mt-1 text-3xl sm:text-4xl font-semibold text-white" id="stat-upcoming">4</dd>
-            </div>
+        try {
+            const response = await fetch(SHEET_URL);
+            if (!response.ok) throw new Error("Network response was not ok");
             
-            <!-- Active -->
-            <div class="bg-gray-800 shadow rounded-lg p-4 sm:p-5">
-                <dt class="text-sm font-medium text-gray-400">Active</dt>
-                <dd class="mt-1 text-3xl sm:text-4xl font-semibold text-white" id="stat-active">5</dd>
-            </div>
-            
-            <!-- Completed -->
-            <div class="bg-gray-800 shadow rounded-lg p-4 sm:p-5">
-                <dt class="text-sm font-medium text-gray-400">Completed</dt>
-                <dd class="mt-1 text-3xl sm:text-4xl font-semibold text-white" id="stat-completed">1</dd>
-            </div>
-        </div>
-        
-        <!-- Filters and Controls (Responsive: Stacked on mobile, side-by-side on desktop) -->
-        <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mb-6 gap-3 sm:gap-4">
+            const csvText = await response.text();
+            allAssignments = parseCSV(csvText);
 
-            <!-- Search Input -->
-            <div class="relative w-full sm:w-80 order-1 sm:order-none">
-                <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                <input id="search-input" placeholder="Search..."
-                    class="w-full pl-10 pr-3 py-2 rounded-lg border border-gray-700
-                    bg-gray-800 text-gray-100 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
-            </div>
+            // Update Time
+            const now = new Date();
+            lastUpdated.innerHTML = `Last synced: ${now.toLocaleTimeString()}`;
+            lastUpdated.classList.remove("hidden");
 
-            <!-- Filters and Toggle Button Group -->
-            <div class="flex items-center gap-3 w-full sm:w-auto order-2 sm:order-none">
-                <!-- Class Filter Dropdown -->
-                <select id="filter-class"
-                    class="py-2 px-3 rounded-lg border border-gray-700 w-full sm:w-auto
-                    bg-gray-800 text-gray-100 shadow-sm text-sm">
-                    <option value="All">All Classes</option>
-                    <!-- Options populated by JS -->
-                </select>
-                
-                <!-- Hide Completed Button -->
-                <button id="toggle-completed" class="py-2 px-3 rounded-lg border border-gray-700
-                    bg-gray-800 text-gray-100 shadow-sm text-sm whitespace-nowrap w-full sm:w-auto">
-                    Show Completed
-                </button>
-            </div>
-
-        </div>
-
-        <!-- LOADER (Initially hidden, only shown during real fetch) -->
-        <div id="loader" class="text-center py-20 hidden">
-            <div class="animate-spin h-12 w-12 border-t-4 border-b-4 border-indigo-600 rounded-full mx-auto"></div>
-            <p class="mt-4 text-gray-500">Syncing data...</p>
-        </div>
-
-        <!-- TASK CARDS CONTAINER -->
-        <div id="assignment-container" class="grid gap-4">
-            <!-- Cards will be injected here by JS -->
-        </div>
-
-        <!-- EMPTY STATE (Hidden unless filtered results are 0) -->
-        <div id="empty-state" class="hidden text-center py-20">
-            <i class="fa-regular fa-clipboard text-6xl text-gray-700 mb-4"></i>
-            <h3 class="text-lg font-medium">No assignments found</h3>
-            <p class="text-gray-500">Try adjusting your filters or search term.</p>
-        </div>
-
-    </main>
-
-    <!-- FOOTER -->
-    <footer class="text-center py-6 text-sm text-gray-500 border-t border-gray-700 mt-auto">
-        &copy; 2025 DeadlineTracker
-    </footer>
-
-    <!-- JAVASCRIPT LOGIC -->
-    <script>
-        // Mock data to replicate the exact state shown in the provided image
-        const MOCK_ASSIGNMENTS = [
-            // Active Tasks (Days Left: 1, 1, 2, 4, 10)
-            { id: "LCA-Quiz-9-Dec-25", className: "LCA", title: "Quiz", desc: "everything studied so far", priority: "High", date: "9-Dec-25", daysLeft: 1 },
-            { id: "ICT-Quiz-9-Dec-25", className: "ICT", title: "Quiz", desc: "Theory: AI Quiz", priority: "Medium", date: "9-Dec-25", daysLeft: 1 },
-            { id: "Applied-Physics-Quiz-10-Dec-25", className: "Applied Physics", title: "Quiz", desc: "SHM", priority: "Medium", date: "10-Dec-25", daysLeft: 2 },
-            { id: "Mechanical-Workshop-Project-12-Dec-25", className: "Mechanical Workshop", title: "Project", desc: "Soldering Project: Construction of AND and OR Gates", priority: "Medium", date: "12-Dec-25", daysLeft: 4 },
-            { id: "FQ-Exam-18-Dec-25", className: "FQ", title: "Exam", desc: "Final Exam & book checking", priority: "High", date: "18-Dec-25", daysLeft: 10 },
-            // Completed Task (Used for initialization)
-            { id: "Calculus-Assignment-9-Dec-25", className: "Calculus", title: "Assignment", desc: "Solving questions from Chapter 6", priority: "High", date: "9-Dec-25", daysLeft: 1 } 
-        ];
-
-        let allAssignments = [];
-        let completedAssignments = new Set(); 
-        let showCompleted = false; // Initially hides completed tasks, matching the default state of the button "Show Completed"
-
-        document.addEventListener("DOMContentLoaded", () => {
-            initTheme();
-            loadCompletedFromStorage();
-            
-            // In a real app, you'd call fetchData(). For this demo, we use mock data.
-            // fetchData(); 
-            allAssignments = MOCK_ASSIGNMENTS; 
-            
-            // Set the initial state for the button and rendering
-            updateCompletedButtonText();
+            // Refresh UI
             populateClassFilter();
             renderStats();
-            filterData(); 
+            filterData();
 
-            document.getElementById("search-input").addEventListener("input", filterData);
-            document.getElementById("filter-class").addEventListener("change", filterData);
-            document.getElementById("toggle-completed").addEventListener("click", toggleCompletedView);
+        } catch (error) {
+            console.error("Error fetching data:", error);
+            container.innerHTML = `<div class="text-center text-red-400 py-10">Error loading data. Check console.</div>`;
+        } finally {
+            loader.classList.add("hidden");
+            container.classList.remove("hidden");
+        }
+    }
+
+    function parseCSV(text) {
+        // Split into lines and remove empty rows
+        const rows = text.split('\n').filter(row => row.trim() !== '');
+        
+        // Remove header row (assuming row 1 is headers)
+        const dataRows = rows.slice(1);
+
+        return dataRows.map((row, index) => {
+            // Handle CSV splitting (handling commas inside quotes is complex, 
+            // but for this simple sheet, we will split by comma)
+            // If your descriptions have commas, consider removing them in the sheet
+            const cols = row.split(',').map(c => c.trim().replace(/^"|"$/g, '')); // Remove quotes if present
+
+            // MAPPING: Adjust these indices if your columns are different
+            const className = cols[0] || "General";
+            const title = cols[1] || "Task";
+            const desc = cols[2] || "";
+            const priority = cols[3] || "Low";
+            const dateStr = cols[4] || "";
+
+            // Calculate Days Left
+            const daysLeft = calculateDaysLeft(dateStr);
+
+            // Create a unique ID based on content to track completion
+            // (Removing spaces/special chars to make it HTML safe)
+            const safeDate = dateStr.replace(/[^a-zA-Z0-9]/g, '-');
+            const safeClass = className.replace(/[^a-zA-Z0-9]/g, '-');
+            const uniqueId = `${safeClass}-${safeDate}-${index}`;
+
+            return {
+                id: uniqueId,
+                className: className,
+                title: title,
+                desc: desc,
+                priority: priority,
+                date: dateStr,
+                daysLeft: daysLeft
+            };
+        });
+    }
+
+    function calculateDaysLeft(targetDateStr) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Reset time to midnight for accurate day calc
+
+        const target = new Date(targetDateStr);
+        // Handle invalid dates
+        if (isNaN(target.getTime())) return 0;
+
+        // Difference in milliseconds
+        const diffTime = target - today;
+        // Convert to days
+        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
+
+    /* ------------------ THEME & INITIALIZATION ------------------ */
+    function initTheme() {
+        const icon = document.getElementById("theme-icon");
+        const toggleButton = document.getElementById("theme-toggle");
+        
+        // Initial setting (Dark Mode)
+        document.documentElement.classList.add("dark");
+        icon.classList.add("fa-sun");
+        document.body.classList.remove('bg-gray-100', 'text-gray-800');
+        document.body.classList.add('bg-gray-900', 'text-gray-200');
+
+        toggleButton.onclick = () => {
+            const isDark = document.documentElement.classList.toggle("dark");
+            localStorage.setItem("theme", isDark ? "dark" : "light");
+            
+            // Toggle body colors
+            document.body.classList.toggle('bg-gray-100');
+            document.body.classList.toggle('bg-gray-900');
+            document.body.classList.toggle('text-gray-800');
+            document.body.classList.toggle('text-gray-200');
+
+            // Toggle icon
+            icon.classList.replace(isDark ? "fa-moon" : "fa-sun", isDark ? "fa-sun" : "fa-moon");
+            
+            // Toggle nav bar background color
+            document.querySelector('nav').classList.toggle('bg-gray-800');
+            document.querySelector('nav').classList.toggle('bg-white');
+        };
+    }
+
+    /* ------------------ COMPLETION STORAGE ------------------ */
+    function loadCompletedFromStorage() {
+        const stored = localStorage.getItem("completedAssignments");
+        if (stored) {
+            const storedSet = new Set(JSON.parse(stored));
+            completedAssignments = new Set([...completedAssignments, ...storedSet]);
+        }
+        updateCompletedButtonText(); // Set initial button text
+    }
+
+    function saveCompletedToStorage() {
+        localStorage.setItem("completedAssignments", JSON.stringify([...completedAssignments]));
+    }
+
+    function toggleCompletion(assignmentId) {
+        if (completedAssignments.has(assignmentId)) {
+            completedAssignments.delete(assignmentId);
+        } else {
+            completedAssignments.add(assignmentId);
+        }
+        saveCompletedToStorage();
+        filterData();
+        renderStats();
+    }
+
+    function updateCompletedButtonText() {
+        const btn = document.getElementById("toggle-completed");
+        btn.innerHTML = showCompleted ? 
+            '<i class="fa-regular fa-eye-slash mr-1"></i> Hide Completed' : 
+            '<i class="fa-regular fa-eye mr-1"></i> Show Completed';
+    }
+
+    function toggleCompletedView() {
+        showCompleted = !showCompleted;
+        updateCompletedButtonText();
+        filterData();
+    }
+
+    /* ------------------ STATS ------------------ */
+    function renderStats() {
+        const activeAssignments = allAssignments.filter(a => !completedAssignments.has(a.id));
+        const completedCount = allAssignments.filter(a => completedAssignments.has(a.id)).length;
+        
+        document.getElementById("stat-total").textContent = allAssignments.length;
+        document.getElementById("stat-active").textContent = activeAssignments.length;
+        document.getElementById("stat-completed").textContent = completedCount;
+        
+        document.getElementById("stat-upcoming").textContent = 
+            activeAssignments.filter(a => a.daysLeft <= 7 && a.daysLeft >= 0).length;
+    }
+
+    /* ------------------ CLASS FILTER ------------------ */
+    function populateClassFilter() {
+        const select = document.getElementById("filter-class");
+        // Save current selection if it exists
+        const currentVal = select.value;
+        
+        select.innerHTML = '<option value="All">All Classes</option>';
+
+        [...new Set(allAssignments.map(a => a.className))].sort().forEach(cls => {
+            const opt = document.createElement("option");
+            opt.value = opt.textContent = cls;
+            select.appendChild(opt);
         });
 
-        /* ------------------ THEME & INITIALIZATION ------------------ */
-        function initTheme() {
-            const icon = document.getElementById("theme-icon");
-            const toggleButton = document.getElementById("theme-toggle");
-            
-            // Initial setting (Dark Mode to match the image)
-            document.documentElement.classList.add("dark");
-            icon.classList.add("fa-sun");
-            document.body.classList.remove('bg-gray-100', 'text-gray-800');
-            document.body.classList.add('bg-gray-900', 'text-gray-200');
+        // Restore selection if still valid
+        if ([...select.options].some(o => o.value === currentVal)) {
+            select.value = currentVal;
+        }
+    }
 
-            toggleButton.onclick = () => {
-                const isDark = document.documentElement.classList.toggle("dark");
-                localStorage.setItem("theme", isDark ? "dark" : "light");
-                
-                // Toggle body colors
-                document.body.classList.toggle('bg-gray-100');
-                document.body.classList.toggle('bg-gray-900');
-                document.body.classList.toggle('text-gray-800');
-                document.body.classList.toggle('text-gray-200');
+    /* ------------------ FILTER & SORT ------------------ */
+    function filterData() {
+        const q = document.getElementById("search-input").value.toLowerCase();
+        const cls = document.getElementById("filter-class").value;
 
-                // Toggle icon
-                icon.classList.replace(isDark ? "fa-moon" : "fa-sun", isDark ? "fa-sun" : "fa-moon");
-                
-                // Toggle nav bar background color
-                document.querySelector('nav').classList.toggle('bg-gray-800');
-                document.querySelector('nav').classList.toggle('bg-white');
-            };
+        let filtered = allAssignments.filter(item => 
+            (item.title.toLowerCase().includes(q) || 
+             item.className.toLowerCase().includes(q) || 
+             item.desc.toLowerCase().includes(q)) &&
+            (cls === "All" || item.className === cls)
+        );
+
+        // Sort logic: active tasks first, then by days left (soonest first)
+        filtered.sort((a, b) => {
+            const aCompleted = completedAssignments.has(a.id);
+            const bCompleted = completedAssignments.has(b.id);
+
+            // Completed always comes after active
+            if (aCompleted && !bCompleted) return 1;
+            if (!aCompleted && bCompleted) return -1;
+
+            // Sort active by daysLeft (ascending)
+            return a.daysLeft - b.daysLeft;
+        });
+
+        // Filter out completed items if showCompleted is false
+        if (!showCompleted) {
+            filtered = filtered.filter(item => !completedAssignments.has(item.id));
         }
 
-        /* ------------------ COMPLETION STORAGE ------------------ */
-        function loadCompletedFromStorage() {
-            // Initialize with the completed task from the image if nothing is in storage
-            completedAssignments.add("Calculus-Assignment-9-Dec-25"); 
-            
-            const stored = localStorage.getItem("completedAssignments");
-            if (stored) {
-                const storedSet = new Set(JSON.parse(stored));
-                completedAssignments = new Set([...completedAssignments, ...storedSet]);
-            }
+        renderAssignments(filtered);
+    }
+
+    /* ------------------ RENDER CARDS ------------------ */
+    function renderAssignments(data) {
+        const container = document.getElementById("assignment-container");
+        container.innerHTML = "";
+
+        if (data.length === 0) {
+            document.getElementById("empty-state").classList.remove("hidden");
+            return;
+        }
+        document.getElementById("empty-state").classList.add("hidden");
+
+        data.forEach(item => {
+            container.appendChild(createCard(item, completedAssignments.has(item.id)));
+        });
+    }
+
+    /* ------------------ CREATE CARD ------------------ */
+    function createCard(item, isCompleted) {
+        const card = document.createElement("div");
+        card.id = item.id;
+        
+        // Base card styling
+        card.className = `bg-gray-800 p-5 rounded-xl shadow border border-gray-700 
+                        flex flex-col md:flex-row justify-between md:items-center gap-4 fade-in`;
+        
+        if (isCompleted) {
+            card.classList.add('completed-card');
         }
 
-        function saveCompletedToStorage() {
-            localStorage.setItem("completedAssignments", JSON.stringify([...completedAssignments]));
-        }
+        // Determine priority badge colors
+        let priorityClass = "bg-gray-700 text-gray-400";
+        const p = item.priority.toLowerCase();
+        if (p.includes("high")) priorityClass = "bg-red-800 text-red-200";
+        else if (p.includes("medium")) priorityClass = "bg-yellow-800 text-yellow-200";
+        else if (p.includes("low")) priorityClass = "bg-green-800 text-green-200";
 
-        function toggleCompletion(assignmentId) {
-            if (completedAssignments.has(assignmentId)) {
-                completedAssignments.delete(assignmentId);
+        // Determine days left text and color
+        let daysText, daysColor;
+        
+        if (isCompleted) {
+            daysText = "COMPLETED";
+            daysColor = "text-green-400 font-bold";
+        } else {
+            if (item.daysLeft < 0) {
+                daysText = `OVERDUE`;
+                daysColor = "text-red-400 font-bold";
+            } else if (item.daysLeft === 0) {
+                 daysText = "TODAY";
+                 daysColor = "text-red-400 font-bold";
+            } else if (item.daysLeft === 1) {
+                daysText = "1 DAY LEFT";
+                daysColor = "text-red-400 font-bold";
+            } else if (item.daysLeft <= 7) {
+                daysText = `${item.daysLeft} DAYS LEFT`;
+                daysColor = "text-orange-400 font-bold";
             } else {
-                completedAssignments.add(assignmentId);
+                daysText = `${item.daysLeft} DAYS LEFT`;
+                daysColor = "text-gray-400";
             }
-            saveCompletedToStorage();
-            filterData();
-            renderStats();
         }
 
-        function updateCompletedButtonText() {
-            const btn = document.getElementById("toggle-completed");
-            // Note the use of fa-regular for better visual balance
-            btn.innerHTML = showCompleted ? 
-                '<i class="fa-regular fa-eye-slash mr-1"></i> Hide Completed' : 
-                '<i class="fa-regular fa-eye mr-1"></i> Show Completed';
-        }
-
-        function toggleCompletedView() {
-            showCompleted = !showCompleted;
-            updateCompletedButtonText();
-            filterData();
-        }
-
-        /* ------------------ STATS ------------------ */
-        function renderStats() {
-            const activeAssignments = allAssignments.filter(a => !completedAssignments.has(a.id));
-            const completedCount = allAssignments.filter(a => completedAssignments.has(a.id)).length;
-            
-            document.getElementById("stat-total").textContent = allAssignments.length;
-            document.getElementById("stat-active").textContent = activeAssignments.length;
-            document.getElementById("stat-completed").textContent = completedCount;
-            
-            // Upcoming: only count active assignments within 7 days
-            document.getElementById("stat-upcoming").textContent =
-                activeAssignments.filter(a => a.daysLeft <= 7 && a.daysLeft >= 0).length;
-        }
-
-        /* ------------------ CLASS FILTER ------------------ */
-        function populateClassFilter() {
-            const select = document.getElementById("filter-class");
-            select.innerHTML = '<option value="All">All Classes</option>';
-
-            [...new Set(allAssignments.map(a => a.className))].sort().forEach(cls => {
-                const opt = document.createElement("option");
-                opt.value = opt.textContent = cls;
-                select.appendChild(opt);
-            });
-        }
-
-        /* ------------------ FILTER & SORT ------------------ */
-        function filterData() {
-            const q = document.getElementById("search-input").value.toLowerCase();
-            const cls = document.getElementById("filter-class").value;
-
-            let filtered = allAssignments.filter(item =>
-                (item.title.toLowerCase().includes(q) ||
-                 item.className.toLowerCase().includes(q) ||
-                 item.desc.toLowerCase().includes(q)) &&
-                (cls === "All" || item.className === cls)
-            );
-
-            // Sort logic: active tasks first, then by days left (soonest first)
-            filtered.sort((a, b) => {
-                const aCompleted = completedAssignments.has(a.id);
-                const bCompleted = completedAssignments.has(b.id);
-
-                // Completed always comes after active
-                if (aCompleted && !bCompleted) return 1;
-                if (!aCompleted && bCompleted) return -1;
-
-                // Sort active by daysLeft (ascending)
-                return a.daysLeft - b.daysLeft;
-            });
-
-            // Filter out completed items if showCompleted is false
-            if (!showCompleted) {
-                filtered = filtered.filter(item => !completedAssignments.has(item.id));
-            }
-
-            renderAssignments(filtered);
-        }
-
-        /* ------------------ RENDER CARDS ------------------ */
-        function renderAssignments(data) {
-            const container = document.getElementById("assignment-container");
-            container.innerHTML = "";
-
-            if (data.length === 0) {
-                document.getElementById("empty-state").classList.remove("hidden");
-                return;
-            }
-            document.getElementById("empty-state").classList.add("hidden");
-
-            // Separate active and completed tasks in the current filtered view
-            const active = data.filter(item => !completedAssignments.has(item.id));
-            const completed = data.filter(item => completedAssignments.has(item.id));
-
-            // Render active assignments first, then completed
-            [...active, ...completed].forEach(item => {
-                container.appendChild(createCard(item, completedAssignments.has(item.id)));
-            });
-        }
-
-        /* ------------------ CREATE CARD ------------------ */
-        function createCard(item, isCompleted) {
-            const card = document.createElement("div");
-            card.id = item.id;
-            
-            // Base card styling (Responsive: stacked on mobile, row on tablet/desktop)
-            card.className = `bg-gray-800 p-5 rounded-xl shadow border border-gray-700 
-                            flex flex-col md:flex-row justify-between md:items-center gap-4 fade-in`;
-            
-            if (isCompleted) {
-                card.classList.add('completed-card');
-            }
-
-            // Determine priority badge colors
-            let priorityClass = "bg-gray-700 text-gray-400";
-            if (item.priority.toLowerCase().includes("high"))
-                priorityClass = "bg-red-800 text-red-200";
-            else if (item.priority.toLowerCase().includes("medium"))
-                priorityClass = "bg-yellow-800 text-yellow-200";
-            else if (item.priority.toLowerCase().includes("low"))
-                priorityClass = "bg-green-800 text-green-200";
-
-            // Determine days left text and color
-            let daysText;
-            let daysColor;
-            
-            if (isCompleted) {
-                daysText = "COMPLETED";
-                daysColor = "text-green-400 font-bold";
-            } else {
-                if (item.daysLeft < 0) {
-                    daysText = `OVERDUE`;
-                    daysColor = "text-red-400 font-bold";
-                } else if (item.daysLeft === 0) {
-                     daysText = "TODAY";
-                     daysColor = "text-red-400 font-bold";
-                } else if (item.daysLeft === 1) {
-                    daysText = "1 DAY LEFT";
-                    daysColor = "text-red-400 font-bold";
-                } else if (item.daysLeft <= 7) {
-                    daysText = `${item.daysLeft} DAYS LEFT`;
-                    daysColor = "text-orange-400 font-bold";
-                } else {
-                    daysText = `${item.daysLeft} DAYS LEFT`;
-                    daysColor = "text-gray-400";
-                }
-            }
-
-
-            card.innerHTML = `
-                <!-- Left Section: Checkbox, Details (100% width on mobile) -->
-                <div class="flex items-start gap-4 flex-1 min-w-0 w-full">
-                    <!-- Checkbox -->
-                    <div class="checkbox-wrapper mt-1">
-                        <div class="custom-checkbox ${isCompleted ? 'checked' : ''}" 
-                            data-id="${item.id}"></div>
+        card.innerHTML = `
+            <div class="flex items-start gap-4 flex-1 min-w-0 w-full">
+                <div class="checkbox-wrapper mt-1">
+                    <div class="custom-checkbox ${isCompleted ? 'checked' : ''}"></div>
+                </div>
+                
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="px-2.5 py-0.5 rounded-md text-xs font-semibold
+                            ${isCompleted ? 'bg-gray-700 text-gray-400' : 'bg-indigo-600 text-white'}">
+                            ${item.className}
+                        </span>
+                        <span class="badge ${priorityClass}">${item.priority.toUpperCase()}</span>
                     </div>
-                    
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2 mb-1">
-                            <!-- Class Badge -->
-                            <span class="px-2.5 py-0.5 rounded-md text-xs font-semibold
-                                ${isCompleted ? 'bg-gray-700 text-gray-400' : 'bg-indigo-600 text-white'}">
-                                ${item.className}
-                            </span>
 
-                            <!-- Priority Badge -->
-                            <span class="badge ${priorityClass}">${item.priority.toUpperCase()}</span>
-                        </div>
+                    <h4 class="text-lg font-semibold truncate ${isCompleted ? 'line-through text-gray-500' : 'text-white'}">
+                        ${item.title}
+                    </h4>
 
-                        <!-- Title -->
-                        <h4 class="text-lg font-semibold truncate ${isCompleted ? 'line-through text-gray-500' : 'text-white'}">
-                            ${item.title}
-                        </h4>
+                    <p class="text-sm text-gray-400 mt-1 line-clamp-2 ${isCompleted ? 'opacity-70' : ''}">
+                        ${item.desc}
+                    </p>
+                </div>
+            </div>
 
-                        <!-- Description -->
-                        <p class="text-sm text-gray-400 mt-1 line-clamp-2 ${isCompleted ? 'opacity-70' : ''}">
-                            ${item.desc || 'No description provided.'}
-                        </p>
-                    </div>
+            <div class="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end
+                border-t border-gray-700 md:border-t-0 pt-3 md:pt-0 pl-8 md:pl-0 min-w-[200px]">
+                <div class="text-left md:text-right">
+                    <p class="text-xs text-gray-500 uppercase font-semibold">DUE DATE</p>
+                    <p class="font-medium ${isCompleted ? 'line-through text-gray-500' : 'text-white'}">${item.date}</p>
                 </div>
 
-                <!-- Right Section: Date & Days Left (Full width on mobile, split columns, aligned right on desktop) -->
-                <div class="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end
-                    border-t border-gray-700 md:border-t-0 pt-3 md:pt-0 pl-8 md:pl-0 min-w-[200px]">
-                    <!-- Due Date -->
-                    <div class="text-left md:text-right">
-                        <p class="text-xs text-gray-500 uppercase font-semibold">DUE DATE</p>
-                        <p class="font-medium ${isCompleted ? 'line-through text-gray-500' : 'text-white'}">${item.date}</p>
-                    </div>
-
-                    <!-- Days Left / Status -->
-                    <div class="text-right w-24">
-                        <p class="text-xs uppercase font-semibold ${daysColor}">${daysText}</p>
-                    </div>
+                <div class="text-right w-24">
+                    <p class="text-xs uppercase font-semibold ${daysColor}">${daysText}</p>
                 </div>
-            `;
-            
-            // Add click event to checkbox
-            const checkbox = card.querySelector('.custom-checkbox');
-            checkbox.addEventListener('click', () => {
-                toggleCompletion(item.id);
-            });
-
-            return card;
-        }
-    </script>
-
-</body>
-</html>
+            </div>
+        `;
+        
+        card.querySelector('.custom-checkbox').addEventListener('click', () => toggleCompletion(item.id));
+        return card;
+    }
+</script>
