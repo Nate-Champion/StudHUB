@@ -1,4 +1,194 @@
-<script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeadlineTracker</title>
+
+    <!-- Tailwind CSS (via CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome Icons (via CDN) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/css/all.min.css">
+
+    <!-- Poppins Font (via Google Fonts) -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Base styles */
+        body { font-family: "Poppins", sans-serif; }
+        
+        /* Utility classes */
+        .badge { padding: 0.25em 0.8em; font-size: 0.75rem; font-weight: 700; border-radius: 0.5rem; }
+        .fade-in { animation: fadeIn .4s ease-in-out; }
+        
+        /* Fade in animation for tasks */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Style for completed card to move it to the bottom and dim it */
+        .completed-card { 
+            order: 9999;
+            opacity: 0.7;
+            /* Using background color to match the image's dimming effect in dark mode */
+            background-color: rgba(31, 41, 55, 0.4) !important;
+        }
+
+        /* Custom Checkbox Styling */
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0; 
+        }
+        .custom-checkbox {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid #4b5563; /* Dark gray border */
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .custom-checkbox.checked {
+            background-color: #10b981; /* Green color for checked */
+            border-color: #10b981;
+        }
+        .custom-checkbox.checked::after {
+            content: '\f00c'; /* Font Awesome checkmark icon */
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            color: white;
+            font-size: 14px;
+        }
+        /* Override light mode styles if body switches to light mode */
+        body:not(.dark) .custom-checkbox {
+            border-color: #d1d5db; /* Light gray border */
+        }
+        body:not(.dark) .completed-card {
+            background-color: rgba(243, 244, 246, 0.5) !important;
+        }
+    </style>
+</head>
+
+<!-- Set dark theme as default on load, consistent with the image -->
+<body class="bg-gray-900 text-gray-200 dark transition min-h-screen flex flex-col">
+
+    <!-- HEADER -->
+    <nav class="bg-gray-800 shadow-md sticky top-0 z-50 transition">
+        <div class="max-w-6xl mx-auto px-4 h-16 flex justify-between items-center">
+
+            <!-- App Title -->
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-calendar-day text-2xl text-indigo-500"></i>
+                <h1 class="text-xl font-bold">Deadline<span class="text-indigo-500">Tracker</span></h1>
+            </div>
+
+            <!-- Last Synced & Theme Toggle -->
+            <div class="flex items-center gap-4">
+                <div id="last-updated" class="text-sm text-gray-500 hidden sm:block">Last synced: 10:12:51 PM</div>
+
+                <!-- THEME TOGGLE (Starts with Sun for dark mode) -->
+                <button id="theme-toggle"
+                    class="text-xl p-2 rounded-lg bg-gray-700 transition hover:bg-gray-600">
+                    <i id="theme-icon" class="fa-solid fa-sun text-yellow-500"></i>
+                </button>
+            </div>
+
+        </div>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <main class="max-w-6xl mx-auto px-4 py-8 flex-grow w-full">
+
+        <!-- STATS / DASHBOARD CARDS (Responsive: 2 columns on mobile, 4 on desktop) -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <!-- Total Tasks -->
+            <div class="bg-gray-800 shadow rounded-lg p-4 sm:p-5">
+                <dt class="text-sm font-medium text-gray-400">Total Tasks</dt>
+                <dd class="mt-1 text-3xl sm:text-4xl font-semibold text-white" id="stat-total">6</dd>
+            </div>
+
+            <!-- Upcoming (7 Days) -->
+            <div class="bg-gray-800 shadow rounded-lg p-4 sm:p-5">
+                <dt class="text-sm font-medium text-gray-400">Upcoming (7 Days)</dt>
+                <dd class="mt-1 text-3xl sm:text-4xl font-semibold text-white" id="stat-upcoming">4</dd>
+            </div>
+            
+            <!-- Active -->
+            <div class="bg-gray-800 shadow rounded-lg p-4 sm:p-5">
+                <dt class="text-sm font-medium text-gray-400">Active</dt>
+                <dd class="mt-1 text-3xl sm:text-4xl font-semibold text-white" id="stat-active">5</dd>
+            </div>
+            
+            <!-- Completed -->
+            <div class="bg-gray-800 shadow rounded-lg p-4 sm:p-5">
+                <dt class="text-sm font-medium text-gray-400">Completed</dt>
+                <dd class="mt-1 text-3xl sm:text-4xl font-semibold text-white" id="stat-completed">1</dd>
+            </div>
+        </div>
+        
+        <!-- Filters and Controls (Responsive: Stacked on mobile, side-by-side on desktop) -->
+        <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mb-6 gap-3 sm:gap-4">
+
+            <!-- Search Input -->
+            <div class="relative w-full sm:w-80 order-1 sm:order-none">
+                <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                <input id="search-input" placeholder="Search..."
+                    class="w-full pl-10 pr-3 py-2 rounded-lg border border-gray-700
+                    bg-gray-800 text-gray-100 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
+            </div>
+
+            <!-- Filters and Toggle Button Group -->
+            <div class="flex items-center gap-3 w-full sm:w-auto order-2 sm:order-none">
+                <!-- Class Filter Dropdown -->
+                <select id="filter-class"
+                    class="py-2 px-3 rounded-lg border border-gray-700 w-full sm:w-auto
+                    bg-gray-800 text-gray-100 shadow-sm text-sm">
+                    <option value="All">All Classes</option>
+                    <!-- Options populated by JS -->
+                </select>
+                
+                <!-- Hide Completed Button -->
+                <button id="toggle-completed" class="py-2 px-3 rounded-lg border border-gray-700
+                    bg-gray-800 text-gray-100 shadow-sm text-sm whitespace-nowrap w-full sm:w-auto">
+                    Show Completed
+                </button>
+            </div>
+
+        </div>
+
+        <!-- LOADER (Initially hidden, only shown during real fetch) -->
+        <div id="loader" class="text-center py-20 hidden">
+            <div class="animate-spin h-12 w-12 border-t-4 border-b-4 border-indigo-600 rounded-full mx-auto"></div>
+            <p class="mt-4 text-gray-500">Syncing data...</p>
+        </div>
+
+        <!-- TASK CARDS CONTAINER -->
+        <div id="assignment-container" class="grid gap-4">
+            <!-- Cards will be injected here by JS -->
+        </div>
+
+        <!-- EMPTY STATE (Hidden unless filtered results are 0) -->
+        <div id="empty-state" class="hidden text-center py-20">
+            <i class="fa-regular fa-clipboard text-6xl text-gray-700 mb-4"></i>
+            <h3 class="text-lg font-medium">No assignments found</h3>
+            <p class="text-gray-500">Try adjusting your filters or search term.</p>
+        </div>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="text-center py-6 text-sm text-gray-500 border-t border-gray-700 mt-auto">
+        &copy; 2025 DeadlineTracker
+    </footer>
+
+    <!-- JAVASCRIPT LOGIC -->
+  <script>
     // THE GOOGLE SHEET CSV URL
     const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTzkyidBhfigPvat3WEZFh6IhblU1GPSZIiPAeI27ALZ4yfoxzfHiji3HtczzYHTS-b3d3dj1iYmHSu/pub?gid=0&single=true&output=csv';
 
@@ -351,3 +541,6 @@
         return card;
     }
 </script>
+
+</body>
+</html> 
